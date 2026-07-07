@@ -20,7 +20,8 @@
   let allTags: TagResponseDto[] = $state([]);
   let tagMap = $derived(Object.fromEntries(allTags.map((tag) => [tag.id, tag])));
   let selectedIds = new SvelteSet<string>();
-  let disabled = $derived(selectedIds.size === 0);
+  let submitting = $state(false);
+  let disabled = $derived(selectedIds.size === 0 || submitting);
   let allowCreate: boolean = $state(true);
 
   onMount(async () => {
@@ -28,13 +29,18 @@
   });
 
   const onSubmit = async () => {
-    if (selectedIds.size === 0) {
+    if (selectedIds.size === 0 || submitting) {
       return;
     }
 
-    const updatedIds = await tagAssets({ tagIds: [...selectedIds], assetIds, showNotification: false });
-    eventManager.emit('AssetsTag', updatedIds);
-    onClose(true);
+    submitting = true;
+    try {
+      const updatedIds = await tagAssets({ tagIds: [...selectedIds], assetIds, showNotification: false });
+      eventManager.emit('AssetsTag', updatedIds);
+      onClose(true);
+    } finally {
+      submitting = false;
+    }
   };
 
   const handleSelect = async (option?: ComboBoxOption) => {
@@ -65,6 +71,7 @@
   submitText={$t('tag_assets')}
   onOpenAutoFocus={(event) => event.preventDefault()}
   {disabled}
+  loading={submitting}
 >
   <div class="my-4 flex flex-col gap-2">
     <Combobox
